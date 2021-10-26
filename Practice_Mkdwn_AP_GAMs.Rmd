@@ -1,0 +1,80 @@
+---
+title: "Practice Markdown Script for Alaska Plaice GAMs"
+author: "Laura Vary"
+date: "10/26/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,root.dir="C:/Users/varyl/Desktop/GitHub/BeringSeaFishes_GAM_Analyses")
+```
+
+## Loading Alaska Plaice Data and Environmental Data
+
+This chunk will load Alaska plaice data into the global environment. This dataset includes  
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. 
+
+```{r}
+aplarv.ctd<-read.csv(file='../Ichthyo Data/Cleaned_Cut_ApLarv_wCTD.csv',header=TRUE,check.names=TRUE)
+head(aplarv.ctd)
+```
+
+These data include the cruise on which ichthyoplankton were collected, the station and haul which indicate location and net deployment, respectively, the catch per area and catch per volume, the year, day of year, geographic position, and the raw count of larvae. 
+
+## Initial Data Visualization
+
+Before continuing on to the creation of a generalized additive model, it is instructive to generate plots to better visualize these data. 
+
+```{r, fig.width=4.5,fig.height=5}
+windows()
+par(mfrow=c(2,2))
+plot(table(aplarv.ctd$year[aplarv.ctd$Cper10m2>0]),ylab='Frequency',xlab='Year')
+plot(table(aplarv.ctd$STATION[aplarv.ctd$Cper10m2>0]),ylab='Frequency',xlab='Station Number')
+plot(table(aplarv.ctd$lat[aplarv.ctd$Cper10m2>0]),ylab='Frequency',xlab='Latitude')
+plot(table(aplarv.ctd$lon[aplarv.ctd$Cper10m2>0]),ylab='Frequency',xlab='Longitude')
+```
+
+Now that we understand a bit more about the data, we can run a generalized additive model (GAM). 
+
+## Generalized Additive Model of Larval Biogeography 
+
+Now we will create a GAM that models the distribution of Alaska plaice larvae as it relates to temperature and salinity. The temperature and salinity data were collected by conductivity-temperature-depth casts at every station and haul aboard these cruises. We will create a GAM with a two-dimensional smooth; this means that temperature and salinity act together as covariates to influence larval biogeography in this model. 
+
+```{r}
+library(mgcv)
+lv.2d<-gam((Cper10m2+1)~factor(year)+s(lon,lat)+s(doy,k=7)+s(bottom_depth)+
+             s(temperature,salinity),data=aplarv.ctd,family=tw(link='log'),
+           method='REML')
+
+summary(lv.2d)
+```
+
+This model actually does a great job of explaining larval biogeography with a deviance explained of 83%. All variables included are significant, though bottom depth is less significant than the others. We included bottom depth to account for variation in sampling presence across the shelf. While these are superficially good results, the predictions for each factor(year) vary in significance which may decrease our faith in the model. 
+
+Now we can plot these results. 
+
+```{r}
+library(maps)
+
+windows()
+par(mfrow=c(1,2))
+plot(lv.2d,select=2,seWithMean=TRUE,shade=TRUE,shade.col='skyblue4',
+     main='Seasonal Presence, 2D Temp+Sal Model')
+abline(h=0,col='sienna3',lty=2,lwd=2)
+plot(lv.2d,select=1,scheme=2,seWithMean=TRUE,too.far=0.025,
+     xlab='Longitude',ylab='Latitude',main='Biogeography, 2D Temp+Sal Model')
+map("world",fill=T,col="snow4",add=T)
+```
+
+This above figure shows the model output for seasonal presence (at what day of year larvae are caught) and biogeography (where larvae are caught). 
+
+```{r}
+windows()
+plot(lv.2d,select=4,scheme=2,main='Larval Log Presence, 2D Temp and Sal Effect',
+     too.far=0.025,
+     xlab='Temperature (degC)',ylab='Salinity (psu)')
+```
+
+This above figure shows the influence that temperature and salinity, when working together in a two-dimensional smooth, have on larval catch anomalies. Positive values in this figure (more yellow) reflect temperature and salinity values at which one can expect a _higher than average_ larval catch. 
+
