@@ -187,6 +187,26 @@ end_time <- Sys.time()
 
 end_time - start_time
 ```
+Computational power can be decreased by creating entire vectors to conduct operations between, rather than making a relatively drawn out set of operations that are by individual numbers. E.g., dividing one value by the next value in a series takes longer than dividing one entire vector by another entire vector. 
+
+```{r}
+tmax <- 9999
+Nobsv <- geom_growth_preallocated(tmax=tmax)
+
+start_time <- Sys.time()
+
+growth_rates <- vector('numeric',length(data)-1)
+
+Nnow <- Nobsv[-tmax]
+Nnext <- Nobsv[-1]
+
+growth_rates <- Nnext/Nnow #dividing one vector by another,  which saves computational time.  
+
+end_time <- Sys.time()
+
+end_time - start_time 
+
+```
 
 
 
